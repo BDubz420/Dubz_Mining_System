@@ -9,13 +9,17 @@ DMS.RockModels = {  -- Ore Models
     "models/props_wasteland/rockgranite03c.mdl"
 } 
 
+DMS.AccentColor = Color(25, 140, 200)
+
+DMS.BackgroundColor = Color(0, 0, 0, 190)
+
 DMS.StoneModels = {"models/props_junk/rock001a.mdl"} -- Stone Models
 
 DMS.GemModels = {"models/hunter/plates/plate.mdl"} -- Gem Models
 
 DMS.IngotModels = {"models/hunter/plates/plate025.mdl"} -- Ingot Models
 
-DMS.ForgeModels = {"models/props_lab/reciever_cart.mdl"} -- Forge Models
+DMS.ForgeModels = {"models/props_forest/furnace01.mdl"} -- Forge Models
 
 DMS.BuyerModels = {"models/Humans/Group03/male_06.mdl"} -- Buyer Models
 
@@ -84,6 +88,34 @@ DMS.Buyer = {
     -- Material price multipliers
     MinPriceMultiplier = 1.0,  -- Minimum multiplier for the material prices (e.g., 1.0 means no minimum)
     MaxPriceMultiplier = 2.0,  -- Maximum multiplier for the material prices (e.g., 2.0 doubles the price)
+}
+
+-- ⛏ Pickaxe Sound Tables
+DMS.Sounds = {}
+
+-- Swing / Miss Sounds
+DMS.Sounds.Swing = {
+    --"weapons/iceaxe/iceaxe_swing1.wav",
+    "weapons/slam/throw.wav",
+}
+
+-- Generic world impact (wood, metal, etc.)
+DMS.Sounds.HitWorld = {
+    "physics/metal/metal_solid_impact_bullet3.wav",
+    "weapons/crossbow/hitbod2.wav",
+    "physics/wood/wood_solid_impact_hard1.wav",
+    "physics/wood/wood_solid_impact_hard2.wav"
+}
+
+-- Rock impact (mining)
+DMS.Sounds.HitRock = {
+    "physics/concrete/concrete_impact_strong1.wav",
+    "physics/concrete/concrete_impact_strong2.wav",
+    "physics/concrete/concrete_impact_strong3.wav",
+    "physics/concrete/concrete_break2.wav",
+    "physics/concrete/concrete_break3.wav",
+    "physics/rock/rock_impact_hard1.wav",
+    "physics/rock/rock_impact_hard2.wav"
 }
 
 DMS.PickaxeTiers = {

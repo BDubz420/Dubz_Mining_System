@@ -1,4 +1,3 @@
--- Client-side code for the SWEP
 if CLIENT then
     SWEP.PrintName = "Pickaxe"
     SWEP.Slot = 1
@@ -7,7 +6,6 @@ if CLIENT then
     SWEP.DrawCrosshair = false
 end
 
--- Common variables used both client and server side
 SWEP.Author = ""
 SWEP.Instructions = "Left click to break something"
 SWEP.Contact = ""
@@ -15,8 +13,8 @@ SWEP.Purpose = ""
 
 SWEP.ViewModelFOV = 62
 SWEP.ViewModelFlip = false
-SWEP.ViewModel = Model("models/weapons/c_crowbar.mdl")
-SWEP.WorldModel = Model("models/weapons/w_crowbar.mdl")
+SWEP.ViewModel      = "models/pickaxe/pickaxe_v.mdl"
+SWEP.WorldModel     = "models/pickaxe/pickaxe_w.mdl"
 SWEP.HoldType = "melee"
 
 SWEP.UseHands = true
@@ -25,44 +23,96 @@ SWEP.Spawnable = true
 SWEP.AdminOnly = true
 SWEP.Category = "Dubz Mining System"
 
-SWEP.Sound = Sound("physics/wood/wood_box_impact_hard3.wav")
-
-SWEP.Primary.DefaultClip = 0
 SWEP.Primary.Automatic = true
 SWEP.Primary.ClipSize = -1
+SWEP.Primary.DefaultClip = -1
+SWEP.Primary.Ammo = "none"
 SWEP.Primary.Damage = 20
 SWEP.Primary.Delay = 1
-SWEP.Primary.Ammo = ""
 
--- Include config file
+SWEP.HitSound = ""
+SWEP.MissSound = ""
+
+--SWEP.Sound = Sound("physics/wood/wood_box_impact_hard3.wav")
+
 include("autorun/dubz_mining_config.lua")
-
+---------------------------------------------------------
+-- FIX: Initialize should set hold type, not holster anim
+---------------------------------------------------------
 function SWEP:Initialize()
-    self:SendWeaponAnim(ACT_VM_HOLSTER)
+    self:SetHoldType("melee")
 end
 
+---------------------------------------------------------
+-- Hit effects (animation)
+---------------------------------------------------------
 function SWEP:DoHitEffects()
-    local trace = self.Owner:GetEyeTraceNoCursor()
+    local owner = self:GetOwner()
+    if not IsValid(owner) then return end
 
-    if (trace.Hit or trace.HitWorld) and self.Owner:GetShootPos():Distance(trace.HitPos) <= 64 then
+    local trace = owner:GetEyeTrace()
+    local hitEnt = trace.Entity
+    local distOK = owner:GetShootPos():Distance(trace.HitPos) <= 64
+
+    -- Animation
+    if trace.Hit and distOK then
         self:SendWeaponAnim(ACT_VM_HITCENTER)
-        self:EmitSound("weapons/crossbow/hitbod2.wav")
     else
         self:SendWeaponAnim(ACT_VM_MISSCENTER)
-        self:EmitSound("npc/vort/claw_swing2.wav")
     end
+
+    -- MISS swing
+    if not distOK then
+        self:EmitSound(table.Random(DMS.Sounds.Swing), 75, math.random(95,110))
+        return
+    end
+
+    -- === ROCK HIT ===
+    if IsValid(hitEnt) and hitEnt:GetClass() == "dubz_rock" then
+        self:EmitSound(table.Random(DMS.Sounds.HitRock), 80, math.random(95,110))
+        return
+    end
+
+    -- === TRUE WORLD HIT (reliable) ===
+    if trace.HitWorld 
+        or not IsValid(hitEnt)
+        or hitEnt:IsWorld()
+        or (IsValid(hitEnt) and hitEnt:GetClass() == "worldspawn") 
+    then
+        self:EmitSound(table.Random(DMS.Sounds.HitWorld), 75, math.random(95,110))
+        return
+    end
+
+    -- === PROP HIT (any other entity) ===
+    if IsValid(hitEnt) then
+        self:EmitSound(table.Random(DMS.Sounds.HitWorld), 75, math.random(95,110))
+        return
+    end
+
+    -- Fallback
+    self:EmitSound(table.Random(DMS.Sounds.HitWorld), 75, math.random(95,110))
 end
 
-function SWEP:DoAnimations(idle)
-    if not idle then
-        self.Owner:SetAnimation(PLAYER_ATTACK1)
-    end
+---------------------------------------------------------
+-- Attack animation
+---------------------------------------------------------
+function SWEP:DoAnimations()
+    local owner = self:GetOwner()
+    if not IsValid(owner) then return end
+
+    owner:SetAnimation(PLAYER_ATTACK1)
 end
 
+---------------------------------------------------------
+-- Primary attack (mining)
+---------------------------------------------------------
 function SWEP:PrimaryAttack()
-    local level = math.Clamp(self.Owner:GetNWInt("DubzLevel", 1), 1, 50)
+    local owner = self:GetOwner()
+    if not IsValid(owner) then return end
 
-    -- Delay scaling (quick up to level 10, then slower)
+    local level = math.Clamp(owner:GetNWInt("DubzLevel", 1), 1, 50)
+
+    -- Speed scaling
     local progress = level / 10
     local eased = math.min(progress, 1) + (math.max(level - 10, 0) / 160)
     local delay = math.Clamp(1 - eased * 0.8, 0.2, 1)
@@ -72,28 +122,37 @@ function SWEP:PrimaryAttack()
     self:DoHitEffects()
 
     if SERVER then
-        if self.Owner.LagCompensation then self.Owner:LagCompensation(true) end
+        owner:LagCompensation(true)
 
-        local trace = self.Owner:GetEyeTraceNoCursor()
+        local trace = owner:GetEyeTrace()
 
-        if self.Owner:GetShootPos():Distance(trace.HitPos) <= 64 then
+        if owner:GetShootPos():Distance(trace.HitPos) <= 64 then
             if IsValid(trace.Entity) and trace.Entity:GetClass() == "dubz_rock" then
-                -- Scale damage: +1 per 10 levels (starting at level 10)
                 local damage = self.Primary.Damage + math.floor(level / 10)
-                trace.Entity:TakeDamage(damage, self:GetOwner(), self)
+                trace.Entity:TakeDamage(damage, owner, self)
             end
         end
 
-        if self.Owner.LagCompensation then self.Owner:LagCompensation(false) end
+        owner:LagCompensation(false)
     end
 end
+
+---------------------------------------------------------
+-- Prevent weird behavior on holster
+---------------------------------------------------------
 function SWEP:Holster()
     return true
 end
 
+---------------------------------------------------------
+-- Tier-based viewmodel coloring (optional)
+---------------------------------------------------------
 function SWEP:Think()
     if CLIENT then
-        local level = math.Clamp(LocalPlayer():GetNWInt("DubzLevel", 1), 1, 50)
+        local owner = LocalPlayer()
+        if not IsValid(owner) then return end
+
+        local level = math.Clamp(owner:GetNWInt("DubzLevel", 1), 1, 50)
         local tier = DMS.PickaxeTiers[1]
 
         for i = #DMS.PickaxeTiers, 1, -1 do
@@ -103,23 +162,19 @@ function SWEP:Think()
             end
         end
 
-        --local vm = self.Owner:GetViewModel()
-        --if IsValid(vm) and tier.color then
-        --    vm:SetColor(tier.color)
-        --    vm:SetMaterial("models/shiny") -- Optional: shinier material
-        --end
+        -- VM coloring can be re-enabled if needed
     end
 end
 
-function SWEP:DrawHUD()
-end
-
-function SWEP:SecondaryAttack()
-end
-
+---------------------------------------------------------
+-- Deploy — FIX: color WORLD MODEL, not the weapon SWEP entity
+---------------------------------------------------------
 function SWEP:Deploy()
+    local owner = self:GetOwner()
+    if not IsValid(owner) then return true end
+
     if SERVER then
-        local level = math.Clamp(self.Owner:GetNWInt("DubzLevel", 1), 1, 50)
+        local level = math.Clamp(owner:GetNWInt("DubzLevel", 1), 1, 50)
         local tier = DMS.PickaxeTiers[1]
 
         for i = #DMS.PickaxeTiers, 1, -1 do
@@ -129,6 +184,7 @@ function SWEP:Deploy()
             end
         end
 
+        -- FIX: Proper way to color worldmodel
         if tier.color then
             self:SetColor(tier.color)
             self:SetMaterial("models/shiny")
@@ -136,4 +192,16 @@ function SWEP:Deploy()
     end
 
     return true
+end
+
+function SWEP:FireAnimationEvent(pos, ang, event, options)
+    return true -- block all animation-triggered sounds
+end
+
+function SWEP:PlayImpactSound()
+    -- override default crowbar sound (do nothing)
+end
+
+function SWEP:PlaySwingSound()
+    -- override default swing sound (do nothing)
 end

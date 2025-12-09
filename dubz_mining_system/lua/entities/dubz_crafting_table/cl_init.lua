@@ -1,5 +1,13 @@
 include("shared.lua")
 
+surface.CreateFont("DMS_CraftingFont", {
+    font = "HUDNumber5",     -- HUDNumber5 uses this internally
+    size = 15,                 -- HUDNumber5 is ~40–42 px, so this is slightly smaller
+    weight = 900,
+    antialias = true,
+    extended = true
+})
+
 function ENT:Draw()
     self:DrawModel()
 
@@ -11,11 +19,11 @@ function ENT:Draw()
 
     cam.Start3D2D(pos, ang, 0.1)
         -- Display the gem's name
-        draw.WordBox(6, 0, -210, "Crafting Table", "DermaLarge", Color(0, 0, 0, 150), Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        draw.WordBox(6, 0, -210, "Crafting Table", "HUDNumber5", Color(0, 0, 0, 150), Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
         -- Check if the player is close enough and display "Press E to pick up" message
         if distance <= 150 then  -- Display message only if the player is close (within 150 units)
-            draw.SimpleText("Press E to use", "DermaDefault", 0, -180, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            draw.SimpleText("Press E to use", "DMS_CraftingFont", 0, -180, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         end
     cam.End3D2D()
 end

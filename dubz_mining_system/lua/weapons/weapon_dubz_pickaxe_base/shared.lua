@@ -61,10 +61,10 @@ function SWEP:DoHitEffects()
 
     if ((trace.Hit or trace.HitWorld) and self.Owner:GetShootPos():Distance(trace.HitPos) <= 64) then
         self:SendWeaponAnim(ACT_VM_HITCENTER)
-        self:EmitSound("weapons/crossbow/hitbod2.wav")
+        --self:EmitSound("weapons/crossbow/hitbod2.wav")
     else
         self:SendWeaponAnim(ACT_VM_MISSCENTER)
-        self:EmitSound("npc/vort/claw_swing2.wav")
+        --self:EmitSound("npc/vort/claw_swing2.wav")
     end
 end
 

@@ -18,19 +18,65 @@ end
 function ENT:Draw()
     self:DrawModel()
 
+    -- Smoke effect when processing
+    if self.NextSmoke == nil then self.NextSmoke = 0 end
+
+    local isProcessing = self:GetNWBool("Processing", false)
+    if isProcessing and CurTime() >= self.NextSmoke then
+        self.NextSmoke = CurTime() + 0.1  -- emission delay
+
+        local smokePos = self:GetPos() + Vector(-10,0,60) + self:GetUp() * 60  -- adjust height of smoke
+
+        local emitter = ParticleEmitter(smokePos)
+        if emitter then
+            local p = emitter:Add("particle/smokesprites_000"..math.random(1,9), smokePos)
+            if p then
+                p:SetVelocity(Vector(0,0,60) + VectorRand() * 5)
+                p:SetDieTime(1.5)
+                p:SetStartAlpha(80)
+                p:SetEndAlpha(0)
+                p:SetStartSize(12)
+                p:SetEndSize(25)
+                p:SetRoll(math.random(-10, 10))
+                p:SetRollDelta(math.random(-0.5, 0.5))
+                p:SetColor(100, 100, 100)
+                p:SetGravity(Vector(0, 0, 15))
+                p:SetAirResistance(80)
+            end
+            emitter:Finish()
+        end
+    end
+
     local ply = LocalPlayer()
     local distance = ply:GetPos():Distance(self:GetPos())
     if distance > 300 then return end
 
-    local ang = self:GetAngles()
-    ang:RotateAroundAxis(ang:Up(), 90)
-    ang:RotateAroundAxis(ang:Forward(), 90)
+    local baseAng = self:GetAngles()
 
-    local pos = self:GetPos() + Vector(0, 0, 50)
+    -- UI should always appear on the entity's forward face
+    local ang = Angle(0, baseAng.y, 0)  -- only use yaw
+
+    -- Rotate so UI faces the player
+    ang:RotateAroundAxis(ang:Up(), -90)
+    ang:RotateAroundAxis(ang:Forward(), 90)
+    ang:RotateAroundAxis(ang:Right(), 180)
+
+    -- Position relative to entity's forward face
+    local pos = self:GetPos() +
+        self:GetForward() * 15.8 +   -- forward offset
+        self:GetUp() * 50            -- height
 
     cam.Start3D2D(pos, ang, 0.1)
-        -- Background for status text
-        draw.RoundedBox(8, -100, -30, 200, 30, Color(20, 20, 20, 200))
+        -- Get power status FIRST
+        local powered = self:GetNWBool("PoweredOn", true)
+
+        -- Background height
+        local h = 160
+        if not powered then
+            h = 120 -- shrink when power is off
+        end
+
+        draw.RoundedBox(8, -125, -30, 250, h, Color(20, 20, 20, 200))
 
         -- Get the machine's processing status and ore
         local isProcessing = self:GetNWBool("Processing", false)
@@ -62,7 +108,7 @@ function ENT:Draw()
         draw.SimpleText(statusText, "HUDNumber5", 0, -15, statusColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
         -- Background for time text
-        draw.RoundedBox(8, -125, 10, 250, 30, Color(20, 20, 20, 200))
+        --draw.RoundedBox(8, -125, 10, 250, 30, Color(20, 20, 20, 200))
 
         -- Display remaining time for forging
         local remainingTime = self:GetNWInt("ForgeTime", 0)
@@ -73,24 +119,21 @@ function ENT:Draw()
         draw.SimpleText("Time Left: " .. math.Round(remainingTime) .. "s", "HUDNumber5", 0, 25, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
         -- Background for power status text
-        draw.RoundedBox(8, -125, 50, 250, 30, Color(20, 20, 20, 200))
+        --draw.RoundedBox(8, -125, 50, 250, 30, Color(20, 20, 20, 200))
 
         -- Power status display
         local powerStatus = self:GetNWBool("PoweredOn", true) and "Power On" or "Power Off"
         local powerColor = self:GetNWBool("PoweredOn", true) and Color(0, 255, 0) or Color(255, 0, 0)
-
         draw.SimpleText(powerStatus, "HUDNumber5", 0, 65, powerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-
 
         -- Display the ore being processed, or show "No Ore"
         if self:GetNWBool("PoweredOn", true) then
             -- If the machine is powered on and processing, show ore or "No Ore"
             -- Background for ore processing text
             if currentOre == "Titanium" then
-
-                draw.RoundedBox(8, -125, 90, 250, 30, Color(20, 20, 20, 200))
+                --draw.RoundedBox(8, -125, 90, 250, 30, Color(20, 20, 20, 200))
             else
-                draw.RoundedBox(8, -125, 90, 250, 30, Color(20, 20, 20, 200))
+                --draw.RoundedBox(8, -125, 90, 250, 30, Color(20, 20, 20, 200))
             end
 
             if isProcessing then

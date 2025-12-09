@@ -11,7 +11,7 @@ function ENT:Draw()
 
     cam.Start3D2D(pos + Vector(0, 0, 77), ang, 0.1)
         draw.RoundedBox(8, -140, -10, 280, 50, Color(0, 0, 0, 180))
-        draw.SimpleTextOutlined("Gem & Ore Buyer", "DermaLarge", 0, -10, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, Color(0, 0, 0))
+        draw.SimpleTextOutlined("Gem & Ore Buyer", "HUDNumber5", 0, -10, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, Color(0, 0, 0))
         draw.RoundedBox(4, -100, 20, 200, 10, Color(40, 40, 40))
         draw.RoundedBox(4, -100, 20, 200, 10, Color(0, 170, 255))
     cam.End3D2D()

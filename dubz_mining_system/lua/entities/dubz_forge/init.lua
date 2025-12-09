@@ -3,7 +3,7 @@ AddCSLuaFile("shared.lua")
 include("shared.lua")
 
 function ENT:Initialize()
-    self:SetModel("models/props_lab/reciever_cart.mdl")
+    self:SetModel(table.Random(DMS.ForgeModels) or "models/props_forest/furnace01.mdl")
     self:PhysicsInit(SOLID_VPHYSICS)
     self:SetMoveType(MOVETYPE_VPHYSICS)
     self:SetSolid(SOLID_VPHYSICS)
@@ -20,43 +20,6 @@ function ENT:Initialize()
     self:SetNWString("CurrentIngot", "")
     self:SetNWBool("PoweredOn", false)  -- Default to powered off
     self.TouchCooldowns = {}
-end
-
--- Play toggle sound when the machine is powered on or off
-function ENT:TogglePower()
-    if self:GetNWBool("PoweredOn") then
-        -- Machine is being turned off
-        self:EmitSound("ambient/levels/labs/equipment_printer_off.wav", 75, 100, 1, CHAN_STATIC)
-    else
-        -- Machine is being turned on
-        self:EmitSound("ambient/levels/labs/equipment_printer_on.wav", 75, 100, 1, CHAN_STATIC)
-    end
-end
-
--- Check if the machine is on but idle, and play the idle electrical sound
-function ENT:IdleSound()
-    -- Only play if the machine is powered on and not processing
-    if self:GetNWBool("PoweredOn", false) and not self:GetNWBool("Processing") then
-        self:EmitSound("ambient/levels/labs/equipment_printer_idle.wav", 75, 100, 1, CHAN_STATIC)
-    end
-end
-
--- Play a sound when ingots are deposited
-function ENT:DepositIngot()
-    -- Play a sound upon depositing an ingot
-    self:EmitSound("ambient/levels/labs/equipment_printer_deposit.wav", 75, 100, 1, CHAN_STATIC)
-end
-
--- Deposit a new ore into the machine and add it to the processing queue
-function ENT:DepositOre(ore)
-    local oreQueue = self:GetNWTable("OreQueue", {})
-    table.insert(oreQueue, ore)
-    self:SetNWTable("OreQueue", oreQueue)
-
-    -- If the machine isn't processing, start processing
-    if not self:GetNWBool("Processing") then
-        self:StartProcessing()
-    end
 end
 
 -- Process the next ore in the queue, if there is one
@@ -95,12 +58,12 @@ function ENT:StartProcessing()
     self:SetNWBool("Processing", true)
 
     -- Play the starting sound
-    self:EmitSound("ambient/machines/combine_terminal_idle1.wav", 75, 100, 1, CHAN_STATIC)
+    self:EmitSound("ambient/fire/ignite.wav", 75, 100, 1, CHAN_STATIC)
 
     -- After the first sound finishes, play the loop sound
     timer.Simple(1.5, function() -- Adjust time based on how long the first sound plays
         if IsValid(self) then
-            self:EmitSound("ambient/levels/labs/equipment_printer_loop1.wav", 50, 100, 1, CHAN_LOOPING)
+            self:EmitSound("ambient/fire/fire_big_loop1.wav", 75, 100, 1, CHAN_LOOPING)
         end
     end)
 
@@ -115,10 +78,10 @@ function ENT:StopProcessing()
     self:SetNWBool("Processing", false)
 
     -- Stop the starting sound when processing stops
-    self:StopSound("ambient/machines/combine_terminal_idle1.wav") 
+    self:StopSound("ambient/fire/ignite.wav") 
 
     -- Stop the loop sound when processing stops
-    self:StopSound("ambient/levels/labs/equipment_printer_loop1.wav") 
+    self:StopSound("ambient/fire/fire_big_loop1.wav") 
 
     -- Clear the current ingot and forge time
     self:SetNWString("CurrentIngot", "")
@@ -145,21 +108,27 @@ function ENT:CompleteProcessing()
         ent:SetModel(ingotData.model or "models/props_lab/reciever_cart.mdl")
         ent:SetColor(ingotData.color or color_white)
 
-        local Angles = self:GetAngles()
-        ent:SetPos(self:GetPos() + Angles:Up()*-18.5)
+        local ang = self:GetAngles()
+
+        -- Spawn position: slightly in front + slightly down
+        local spawnPos =
+            self:GetPos() +
+            ang:Forward() * 25 +    -- adjust this forward distance
+            ang:Up() * 10         -- same height offset you used
+
+        ent:SetPos(spawnPos)
+        ent:SetAngles(ang)           -- optional: match furnace rotation
         ent:SetNWString("OreName", oreName)
         ent:Spawn()
 
         local phys = ent:GetPhysicsObject()
         if IsValid(phys) then
-            phys:SetVelocity(VectorRand() * 20)
+            phys:SetVelocity(ang:Forward() * 30)  -- small push outward
         end
 
-        -- Play the deposit sound when the ingot is created
+        -- Sound effects
         self:EmitSound("ambient/machines/metal_scrap1.wav")
-
-        -- Play the completion sound if there's a valid ore
-        self:EmitSound("ambient/levels/labs/equipment_printer_complete.wav", 75, 100, 1, CHAN_STATIC)
+        self:EmitSound("ambient/fire/gascan_ignite2.wav", 75, 100, 1, CHAN_STATIC)
     end
 
     -- Remove the processed stone from the queue
@@ -197,8 +166,14 @@ function ENT:FinishForging(ingotData)
         self:SetNWBool("Processing", false)
         self:SetNWBool("PoweredOn", false)  -- Power off after processing
 
+        -- Stop the starting sound when processing stops
+        self:StopSound("ambient/fire/ignite.wav") 
+
+        -- Stop the loop sound when processing stops
+        self:StopSound("ambient/fire/fire_big_loop1.wav") 
+
         -- You could optionally emit a sound when the processing is complete
-        self:EmitSound("ambient/levels/labs/electric_experiment_end1.wav")
+        self:EmitSound("ambient/fire/gascan_ignite2.wav")
     end
 end
 
@@ -219,10 +194,18 @@ function ENT:Use(activator, caller)
     if self:GetNWBool("PoweredOn") then
         -- Start processing when power is turned on, and a stone is added
         self:StartProcessing()  -- Call StartProcessing when powered on
+
+        self:EmitSound("buttons/button9.wav") -- Power on confirm click
     else
+        self:EmitSound("buttons/button14.wav") -- Power off confirm click
+
         -- Stop processing when power is turned off
         self:SetNWBool("Processing", false)
-        self:StopSound("ambient/machines/combine_terminal_idle1.wav")
+        -- Stop the starting sound when processing stops
+        self:StopSound("ambient/fire/ignite.wav") 
+
+        -- Stop the loop sound when processing stops
+        self:StopSound("ambient/fire/fire_big_loop1.wav") 
     end
 end
 
@@ -235,7 +218,7 @@ function ENT:StartTouch(ent)
         for _, oreName in ipairs(ores) do
             if self:IsValidOre(oreName) then
                 table.insert(self.Stones, oreName)
-                self:EmitSound("items/ammo_pickup.wav")
+                self:EmitSound("physics/metal/metal_box_impact_soft1.wav")
 
                 -- Start processing automatically if the machine is powered on
                 if self:GetNWBool("PoweredOn") then
@@ -257,7 +240,7 @@ function ENT:StartTouch(ent)
     local oreName = ent:GetNWString("OreName")
     if self:IsValidOre(oreName) then
         table.insert(self.Stones, oreName)
-        self:EmitSound("items/ammo_pickup.wav")
+        self:EmitSound("physics/metal/metal_box_impact_soft1.wav")
 
         -- Start processing automatically if the machine is powered on
         if self:GetNWBool("PoweredOn") then
@@ -282,4 +265,7 @@ function ENT:Think()
 
     self:NextThink(CurTime())
     return true
+end
+
+function ENT:OnRemove()
 end

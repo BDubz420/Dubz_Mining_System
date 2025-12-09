@@ -17,10 +17,10 @@ function ENT:Draw()
 
         cam.Start3D2D(position, angle, 0.1)
             --draw.RoundedBox(4, -50, -10, 100, 20, Color(0, 0, 0, 150))
-            draw.SimpleText("Owner: " .. owner, "DermaLarge", 0, 0, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            draw.SimpleText("Owner: " .. owner, "HUDNumber5", 0, 0, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
             --draw.RoundedBox(4, -50, -40, 100, 20, Color(0, 0, 0, 150))
-            draw.SimpleText("Stones: " .. stored, "DermaLarge", 0, -30, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            draw.SimpleText("Stones: " .. stored, "HUDNumber5", 0, -30, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         cam.End3D2D()
     end
 
