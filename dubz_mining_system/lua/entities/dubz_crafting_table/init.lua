@@ -1,82 +1,100 @@
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
+
 include("shared.lua")
-include("autorun/dubz_mining_config.lua")
 
 util.AddNetworkString("DMS_OpenCraftingMenu")
 util.AddNetworkString("DMS_RequestCraftItem")
-util.AddNetworkString("DMS_CraftResult")
 
 function ENT:Initialize()
-	self:SetModel(table.Random(DMS.CraftingTableModels))
-	self:PhysicsInit( SOLID_VPHYSICS )
-	self:SetMoveType( MOVETYPE_VPHYSICS )
-	self:SetSolid( SOLID_VPHYSICS )
-	self:SetUseType(SIMPLE_USE)
-	local phys = self:GetPhysicsObject()
-    phys:Wake()
+    self:SetModel(table.Random(DMS.CraftingTableModels))
+    self:PhysicsInit(SOLID_VPHYSICS)
+    self:SetMoveType(MOVETYPE_VPHYSICS)
+    self:SetSolid(SOLID_VPHYSICS)
+    self:SetUseType(SIMPLE_USE)
+
+    local phys = self:GetPhysicsObject()
+    if IsValid(phys) then phys:Wake() end
 end
 
-function ENT:Use(activator, caller)
+-- Player presses E on the table
+function ENT:Use(activator)
     if not IsValid(activator) or not activator:IsPlayer() then return end
 
-    -- Collect the player's current inventory
+    -- Build player materials table
     local playerMaterials = {}
     for _, gem in ipairs(DMS.Ores.Gems) do
         playerMaterials[gem.name] = activator:GetNWInt("DMS_" .. gem.name .. "_amount", 0)
     end
-    for _, ingot in ipairs(DMS.Ores.Ingots) do
-        playerMaterials[ingot.name] = activator:GetNWInt("DMS_" .. ingot.name .. "_amount", 0)
+    for _, ing in ipairs(DMS.Ores.Ingots) do
+        playerMaterials[ing.name] = activator:GetNWInt("DMS_" .. ing.name .. "_amount", 0)
     end
 
-    -- Send data to the client
+    -- Send crafting menu request
     net.Start("DMS_OpenCraftingMenu")
-    net.WriteTable(DMS.CraftingRecipes)  -- Send the crafting recipes to the client
-    net.WriteTable(playerMaterials)     -- Send the player's materials to the client
+        net.WriteEntity(self)
+        net.WriteTable(DMS.CraftingRecipes)
+        net.WriteTable(playerMaterials)
     net.Send(activator)
 end
 
+-- Crafting request from client
 net.Receive("DMS_RequestCraftItem", function(len, ply)
+    local craftTable = net.ReadEntity()
     local recipeKey = net.ReadString()
+
+    if not IsValid(craftTable) 
+    or craftTable:GetClass() ~= "dubz_crafting_table" then
+        ply:ChatPrint("Crafting failed: Invalid crafting table.")
+        return
+    end
 
     local recipe = DMS.CraftingRecipes[recipeKey]
     if not recipe then return end
 
-    -- Check materials using NWInts
-    for material, amountNeeded in pairs(recipe.requiredItems or {}) do
-        local key = "DMS_" .. material .. "_amount"
-        local playerAmount = ply:GetNWInt(key, 0)
-        if playerAmount < amountNeeded then
-            ply:ChatPrint("You don't have enough " .. material .. " to craft " .. (recipe.displayName or recipeKey))
+    -- LEVEL CHECK
+    local playerLevel = ply:GetMiningLevel()
+    if playerLevel < recipe.requiredLevel then
+        ply:ChatPrint("You need to be level " .. recipe.requiredLevel .. " to craft this item.")
+        return
+    end
+
+    -- MATERIAL CHECKS
+    for mat, needed in pairs(recipe.requiredItems) do
+        local amount = ply:GetNWInt("DMS_" .. mat .. "_amount", 0)
+        if amount < needed then
+            ply:ChatPrint("You don't have enough " .. mat .. ".")
             return
         end
     end
 
-    -- Subtract used materials
-    for material, amountNeeded in pairs(recipe.requiredItems or {}) do
-        local key = "DMS_" .. material .. "_amount"
-        local current = ply:GetNWInt(key, 0)
-        ply:SetNWInt(key, current - amountNeeded)
+    -- Subtract consumed materials
+    for mat, needed in pairs(recipe.requiredItems) do
+        local key = "DMS_" .. mat .. "_amount"
+        ply:SetNWInt(key, ply:GetNWInt(key, 0) - needed)
     end
 
-    -- Spawn the result
-    local spawnPos = ply:GetPos() + ply:GetForward() * 50 + Vector(0, 0, 60)
+    -- Spawn object ON TOP OF TABLE
+    local mins, maxs = craftTable:OBBMins(), craftTable:OBBMaxs()
+    local spawnPos = craftTable:LocalToWorld(Vector(0, 0, maxs.z + 5))
 
     if recipe.spawnType == "weapon" then
-        local weaponEnt = ents.Create("spawned_weapon")
-        weaponEnt:SetModel(recipe.model or "models/weapons/w_pistol.mdl")
-        weaponEnt:SetWeaponClass(recipe.class or recipe.itemName)
-        weaponEnt:SetPos(spawnPos)
-        weaponEnt:Spawn()
+        local wEnt = ents.Create("spawned_weapon")
+        wEnt:SetModel(recipe.model)
+        wEnt:SetWeaponClass(recipe.class)
+        wEnt:SetPos(spawnPos)
+        wEnt:Spawn()
+
     elseif recipe.spawnType == "entity" then
-        local ent = ents.Create(recipe.class or recipe.itemName)
-        if not IsValid(ent) then return end
-        ent:Setowning_ent(ply)
-        ent:SetPos(spawnPos)
-        ent:Spawn()
+        local e = ents.Create(recipe.class)
+        if IsValid(e) then
+            e:SetPos(spawnPos)
+            e:Spawn()
+        end
+
     elseif recipe.spawnType == "give" then
-        ply:Give(recipe.class or recipe.itemName)
+        ply:Give(recipe.class)
     end
 
-    ply:ChatPrint("Successfully crafted " .. (recipe.displayName or recipeKey))
+    ply:ChatPrint("Crafted: " .. recipe.displayName)
 end)

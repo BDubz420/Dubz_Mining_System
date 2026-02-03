@@ -89,10 +89,13 @@ function ENT:StopProcessing()
     self:SetNWFloat("ForgeEndTime", 0)
 end
 
--- Complete the processing for the current ore and output the ingot
 function ENT:CompleteProcessing()
+    if not self.Stones or #self.Stones == 0 then return end
+
     local oreName = self.Stones[1]
     local ingotData
+
+    -- Find ingot data
     for _, ingot in ipairs(DMS.Ores.Ingots) do
         if ingot.name == oreName then
             ingotData = ingot
@@ -101,40 +104,66 @@ function ENT:CompleteProcessing()
     end
 
     if ingotData then
-        -- Create the ingot entity
+        -- Create ingot entity
         local ent = ents.Create("dubz_ingot")
         if not IsValid(ent) then return end
 
-        ent:SetModel(ingotData.model or "models/props_lab/reciever_cart.mdl")
+        -- Model fallback safety
+        local mdl = ingotData.model or "models/props_lab/box01a.mdl"
+
+        ent:SetModel(mdl)
         ent:SetColor(ingotData.color or color_white)
+        ent:SetNWString("OreName", oreName)
 
+        -----------------------------------------------------
+        --  Spawn position relative to forge
+        -----------------------------------------------------
         local ang = self:GetAngles()
-
-        -- Spawn position: slightly in front + slightly down
         local spawnPos =
             self:GetPos() +
-            ang:Forward() * 25 +    -- adjust this forward distance
-            ang:Up() * 10         -- same height offset you used
+            ang:Forward() * 25 +     -- Move outward from furnace
+            ang:Up() * 10            -- Raise slightly
 
         ent:SetPos(spawnPos)
-        ent:SetAngles(ang)           -- optional: match furnace rotation
-        ent:SetNWString("OreName", oreName)
+        ent:SetAngles(ang)
         ent:Spawn()
 
+        -----------------------------------------------------
+        --  Drop physics (small hop forward)
+        -----------------------------------------------------
         local phys = ent:GetPhysicsObject()
         if IsValid(phys) then
-            phys:SetVelocity(ang:Forward() * 30)  -- small push outward
+            phys:Wake()
+            phys:SetVelocity(
+                ang:Forward() * 60 +
+                ang:Up() * 20 +      -- small upward bounce
+                VectorRand() * 5
+            )
         end
 
-        -- Sound effects
-        self:EmitSound("ambient/machines/metal_scrap1.wav")
-        self:EmitSound("ambient/fire/gascan_ignite2.wav", 75, 100, 1, CHAN_STATIC)
+        -----------------------------------------------------
+        --  SOUND FIX: Proper "metal drop" sound
+        -----------------------------------------------------
+
+        -- Perfect metal drop sounds that always exist in HL2:
+        local dropSounds = {
+            "physics/metal/metal_canister_impact_hard1.wav",
+            "physics/metal/metal_canister_impact_hard2.wav",
+            "physics/metal/metal_canister_impact_hard3.wav"
+        }
+
+        self:EmitSound(table.Random(dropSounds), 75, math.random(95,105), 1, CHAN_AUTO)
+
+        -- Optional extra effects for spice:
+        -- self:EmitSound("ambient/levels/labs/coinslot1.wav", 70, 110)
+        -- self:EmitSound("ambient/materials/metal_stress2.wav", 65)
     end
 
-    -- Remove the processed stone from the queue
+    ---------------------------------------------------------
+    -- Remove processed stone & process next
+    ---------------------------------------------------------
     table.remove(self.Stones, 1)
 
-    -- Continue processing if there are still stones in the queue
     if #self.Stones > 0 then
         self:ProcessNextOre()
     else

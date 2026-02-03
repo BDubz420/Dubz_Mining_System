@@ -18,7 +18,7 @@ if CLIENT then
 
         -- Check if the player is holding the pickaxe
         local wep = ply:GetActiveWeapon()
-        if IsValid(wep) and wep:GetClass() == "weapon_dubz_pickaxe_temp" then
+        if IsValid(wep) and wep:GetClass() == "weapon_dubz_pickaxe" then
             -- Use NWInt to get player XP and level
             local playerXP = ply:GetNWInt("DubzXP", 0)
             local playerLevel = ply:GetNWInt("DubzLevel", 1)
@@ -63,7 +63,7 @@ if CLIENT then
         if not DMS or not DMS.Levels then return end
 
         local wep = ply:GetActiveWeapon()
-        if not (IsValid(wep) and wep:GetClass() == "weapon_dubz_pickaxe_temp") then return end
+        if not (IsValid(wep) and wep:GetClass() == "weapon_dubz_pickaxe") then return end
 
         local w, h = ScrW(), ScrH()
         local boxWidth = 420

@@ -2,6 +2,7 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 include("autorun/dubz_mining_config.lua")
+include("autorun/dubz_mining_init.lua")
 
 function ENT:Initialize()
 	self:SetModel(table.Random(DMS.GemModels))
@@ -42,7 +43,6 @@ function ENT:Use(activator, caller)
     local current = caller:GetNWInt(key, 0)
 
     caller:SetNWInt(key, current + 1)
-    caller:SaveMiningData()
 
     -- Optional: Notify the player
     caller:ChatPrint("Picked up 1x " .. matName)

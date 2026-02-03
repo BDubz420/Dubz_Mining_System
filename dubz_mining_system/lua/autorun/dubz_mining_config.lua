@@ -11,7 +11,7 @@ DMS.RockModels = {  -- Ore Models
 
 DMS.AccentColor = Color(25, 140, 200)
 
-DMS.BackgroundColor = Color(0, 0, 0, 190)
+DMS.BackgroundColor = Color(0, 0, 0, 150)
 
 DMS.StoneModels = {"models/props_junk/rock001a.mdl"} -- Stone Models
 
@@ -25,13 +25,15 @@ DMS.BuyerModels = {"models/Humans/Group03/male_06.mdl"} -- Buyer Models
 
 DMS.CraftingTableModels = {"models/props_c17/FurnitureTable002a.mdl"} -- Crafting Table Model
 
+DMS.CraftingTableTitle = "Crafting Table" -- The title for the crafting table
+
+DMS.BuyerTitle = "Gem & Ore Buyer" -- The title for the crafting table
+
 DMS.Material = "models/debug/debugwhite" -- Gems and Ingot Materials
 
 -- Tools
 
-DMS.MiningTools = {"weapon_dubz_pickaxe_temp", "weapon_dubz_pickaxe_basic", "weapon_dubz_pickaxe_topaz", "weapon_dubz_pickaxe_amethyst", "weapon_dubz_pickaxe_emerald", "weapon_dubz_pickaxe_ruby", "weapon_dubz_pickaxe_sapphire", "weapon_dubz_pickaxe_diamond"} -- Tools which helps players break rocks.
-
-DMS.ScanningTools = {"weapon_dubz_scanner"} -- Tools which helps players see what ores are in the rocks.
+DMS.MiningTools = {"weapon_dubz_pickaxe"} -- Tools which helps players break rocks.
 
 -- NPC
 
@@ -101,23 +103,28 @@ DMS.Sounds.Swing = {
 
 -- Generic world impact (wood, metal, etc.)
 DMS.Sounds.HitWorld = {
-    "physics/metal/metal_solid_impact_bullet3.wav",
     "weapons/crossbow/hitbod2.wav",
-    "physics/wood/wood_solid_impact_hard1.wav",
-    "physics/wood/wood_solid_impact_hard2.wav"
 }
-
 -- Rock impact (mining)
 DMS.Sounds.HitRock = {
-    "physics/concrete/concrete_impact_strong1.wav",
-    "physics/concrete/concrete_impact_strong2.wav",
-    "physics/concrete/concrete_impact_strong3.wav",
-    "physics/concrete/concrete_break2.wav",
-    "physics/concrete/concrete_break3.wav",
-    "physics/rock/rock_impact_hard1.wav",
-    "physics/rock/rock_impact_hard2.wav"
+    "physics/concrete/rock_impact_soft1.wav",
+    "physics/concrete/rock_impact_soft2.wav",
+    "physics/concrete/rock_impact_soft3.wav",
+    "physics/concrete/rock_impact_hard1.wav",
+    "physics/concrete/rock_impact_hard2.wav",
+    "physics/concrete/rock_impact_hard3.wav",
+    "physics/concrete/rock_impact_hard4.wav",
+    "physics/concrete/rock_impact_hard5.wav",
+    "physics/concrete/rock_impact_hard6.wav"
+}
+--[[
+DMS.Sounds.HitRock = {
+    "physics/concrete/concrete_impact_soft1.wav",
+    "physics/concrete/concrete_impact_soft2.wav",
+    "physics/concrete/concrete_impact_soft3.wav"
 }
 
+--]]
 DMS.PickaxeTiers = {
     { level = 1,  name = "Topaz",       damage = 2,  speed = 1.00, color = Color(255, 200, 0) },       -- Golden yellow
     { level = 4,  name = "Quartz",      damage = 2,  speed = 0.95, color = Color(255, 255, 255) },     -- White

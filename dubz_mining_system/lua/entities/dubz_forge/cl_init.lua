@@ -54,7 +54,7 @@ function ENT:Draw()
     local baseAng = self:GetAngles()
 
     -- UI should always appear on the entity's forward face
-    local ang = Angle(0, baseAng.y, 0)  -- only use yaw
+    local ang = Angle(baseAng.x, baseAng.y, baseAng.z)  -- only use yaw
 
     -- Rotate so UI faces the player
     ang:RotateAroundAxis(ang:Up(), -90)

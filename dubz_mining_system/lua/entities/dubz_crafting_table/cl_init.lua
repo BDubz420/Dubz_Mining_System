@@ -1,238 +1,238 @@
+include("autorun/dubz_mining_config.lua")
 include("shared.lua")
 
-surface.CreateFont("DMS_CraftingFont", {
-    font = "HUDNumber5",     -- HUDNumber5 uses this internally
-    size = 15,                 -- HUDNumber5 is ~40–42 px, so this is slightly smaller
-    weight = 900,
-    antialias = true,
-    extended = true
+surface.CreateFont("DMS_CTTFont", {
+    font = "HUDNumber5",
+    size = 18,
+    weight = 800
 })
 
+local ent = self
 function ENT:Draw()
     self:DrawModel()
 
     local distance = LocalPlayer():GetPos():Distance(self:GetPos())
-    if distance > 512 then return end  -- Only display UI within 512 units
+    if distance > 512 then return end
 
     local pos = self:GetPos() + Vector(0, 0, 10)
     local ang = Angle(0, LocalPlayer():EyeAngles().y - 90, 90)
 
     cam.Start3D2D(pos, ang, 0.1)
-        -- Display the gem's name
-        draw.WordBox(6, 0, -210, "Crafting Table", "HUDNumber5", Color(0, 0, 0, 150), Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        draw.WordBox(6, 0, -210, DMS.CraftingTableTitle, "HUDNumber5", DMS.BackgroundColor, Color(255,255,255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-        -- Check if the player is close enough and display "Press E to pick up" message
-        if distance <= 150 then  -- Display message only if the player is close (within 150 units)
-            draw.SimpleText("Press E to use", "DMS_CraftingFont", 0, -180, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        if distance <= 150 then
+            draw.SimpleText("Press E to use", "DermaDefault", 0, -180, Color(255,255,255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         end
     cam.End3D2D()
 end
 
--- Function to create the crafting item card
-local function CreateCraftingItemCard(layout, recipeKey, recipeData, playerMaterials, ent)
-    local itemCard = vgui.Create("DPanel")
-    itemCard:SetSize(240, 280)
-    itemCard:SetBackgroundColor(Color(0, 0, 0, 0))
+----------------------------------------------------------------------
+-- CRAFTING ITEM CARD
+----------------------------------------------------------------------
+local function CreateCraftingItemCard(layout, recipeKey, recipeData, tableEnt)
+    local playerLevel = LocalPlayer():GetMiningLevel() or 1
+    local requiredLevel = recipeData.requiredLevel or 1
+    local unlocked = playerLevel >= requiredLevel
 
-    local accent = Color(0, 170, 255)
+    local itemCard = vgui.Create("DPanel")
+    itemCard:SetSize(180, 260)
 
     itemCard.Paint = function(self, w, h)
-        draw.RoundedBox(12, 0, 0, w, h, Color(15, 15, 15, 200))
-        draw.RoundedBoxEx(12, 0, 0, w, 40, Color(20, 20, 20, 220), true, true, false, false)
-        draw.RoundedBox(0, 0, 36, w, 2, accent)
-        draw.SimpleText(recipeData.displayName or "Unknown Item", "DermaLarge", 12, 20, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        draw.SimpleText(recipeData.description or "Choose materials to craft this item.", "DermaDefault", 12, 55, Color(190, 190, 190), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        local bg = unlocked and DMS.BackgroundColor or Color(0,0,0,150)
+        draw.RoundedBox(8, 0, 0, w, h, bg)
+
+        draw.SimpleText(
+            recipeData.displayName or "Unknown Item",
+            "DermaDefaultBold",
+            w/2, 10,
+            unlocked and Color(255,255,255) or Color(180,180,180),
+            TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP
+        )
+
+        if not unlocked then
+            draw.SimpleText(
+                "Requires Level " .. requiredLevel,
+                "DermaDefaultBold",
+                w/2, 30,
+                Color(255,100,100),
+                TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP
+            )
+        else
+            draw.SimpleText(
+                "Level " .. requiredLevel,
+                "DermaDefault",
+                w/2, 30,
+                Color(150,255,150),
+                TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP
+            )
+        end
     end
 
-    -- Add 3D Model Panel
+    ------------------------------------------------------------------
+    -- Model Preview
+    ------------------------------------------------------------------
     local modelPanel = vgui.Create("DModelPanel", itemCard)
-    modelPanel:SetSize(140, 140)
-    modelPanel:SetPos(12, 70)
-    modelPanel:SetModel(recipeData.model or "models/props_junk/PopCan01a.mdl")
+    modelPanel:SetSize(160, 100)
+    modelPanel:SetPos(10, 55)
+    modelPanel:SetModel(recipeData.model)
 
-    function modelPanel:LayoutEntity(ent) return end
-    function modelPanel:OnMousePressed() end
+    function modelPanel:LayoutEntity() return end
 
     local mn, mx = modelPanel.Entity:GetRenderBounds()
-    local size = 0
-    if mn and mx then
-        size = math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z)
-    end
-
-    modelPanel:SetFOV(30)
-    modelPanel:SetCamPos(Vector(size, size, size))
+    local size = math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z)
+    modelPanel:SetFOV(35)
+    modelPanel:SetCamPos(Vector(size,size,size))
     modelPanel:SetLookAt((mn + mx) * 0.5)
 
-    -- Materials list
-    local materialsList = vgui.Create("DIconLayout", itemCard)
-    materialsList:SetPos(160, 80)
-    materialsList:SetSize(80, 110)
-    materialsList:SetSpaceX(0)
-    materialsList:SetSpaceY(6)
-    
-    -- Add materials
-    if recipeData.requiredItems and next(recipeData.requiredItems) ~= nil then
-        for materialName, materialAmount in pairs(recipeData.requiredItems) do
-            local materialLabel = vgui.Create("DPanel", materialsList)
-            materialLabel:SetSize(80, 24)
+    ------------------------------------------------------------------
+    -- Material List (multi-column)
+    ------------------------------------------------------------------
+    local matPanel = vgui.Create("DPanel", itemCard)
+    matPanel:SetPos(10, 155)
+    matPanel:SetSize(160, 70)
+    matPanel.Paint = function() end
 
-            local ownedAmount = (playerMaterials and playerMaterials[materialName]) or 0
-            local hasEnough = ownedAmount >= materialAmount
+    local materials = recipeData.requiredItems or {}
+    local colWidth = 78
+    local lineHeight = 14
+    local maxHeight = matPanel:GetTall()
 
-            -- Determine the color based on whether the material is a gem or ingot
-            local matColor
-            local foundColor = false
+    local currentX = 0
+    local currentY = 0
+    local maxColumns = math.floor(matPanel:GetWide() / colWidth)
 
-            for _, gem in ipairs(DMS.Ores.Gems) do
-                if gem.name == materialName then
-                    matColor = gem.color
-                    foundColor = true
-                    break
-                end
-            end
+    local function AddMaterial(text, color)
+        local lbl = vgui.Create("DLabel", matPanel)
+        lbl:SetFont("DermaDefault")
+        lbl:SetText(text)
+        lbl:SetTextColor(color)
+        lbl:SizeToContents()
+        lbl:SetPos(currentX, currentY)
 
-            if not foundColor then
-                for _, ingot in ipairs(DMS.Ores.Ingots) do
-                    if ingot.name == materialName then
-                        matColor = ingot.color
-                        break
-                    end
-                end
-            end
+        currentY = currentY + lineHeight
 
-            matColor = matColor or Color(200, 200, 200)
-
-            materialLabel.Paint = function(self, w, h)
-                local bgCol = hasEnough and Color(30, 120, 60, 160) or Color(120, 60, 30, 160)
-                draw.RoundedBox(6, 0, 0, w, h, bgCol)
-                draw.SimpleText(materialName, "DermaDefaultBold", 8, h / 2, matColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-                draw.SimpleText(ownedAmount .. "/" .. materialAmount, "DermaDefault", w - 8, h / 2, color_white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+        if (currentY + lineHeight) > maxHeight then
+            if currentX + colWidth < maxColumns * colWidth then
+                currentY = 0
+                currentX = currentX + colWidth
             end
         end
-    else
-        local noMaterialsLabel = vgui.Create("DLabel", materialsList)
-        noMaterialsLabel:SetSize(150, 15)
-        noMaterialsLabel:SetText("No materials")
-        noMaterialsLabel:SetFont("DermaDefault")
-        noMaterialsLabel:SetTextColor(Color(200, 200, 200))
     end
 
-    -- Craft button
+    for materialName, amount in pairs(materials) do
+        local text = materialName .. " x" .. amount
+        local matColor = Color(200,200,200)
+
+        for _, gem in ipairs(DMS.Ores.Gems) do
+            if gem.name == materialName then matColor = gem.color break end
+        end
+        for _, ing in ipairs(DMS.Ores.Ingots) do
+            if ing.name == materialName then matColor = ing.color break end
+        end
+
+        AddMaterial(text, matColor)
+    end
+
+    ------------------------------------------------------------------
+    -- Craft Button
+    ------------------------------------------------------------------
     local craftButton = vgui.Create("DButton", itemCard)
-    craftButton:SetSize(itemCard:GetWide() - 24, 36)
-    craftButton:SetPos(12, 230)
+    craftButton:SetSize(160, 30)
+    craftButton:SetPos(10, 225)
     craftButton:SetText("")
-
-    local function HasAllMaterials()
-        if not recipeData.requiredItems then return true end
-
-        for materialName, materialAmount in pairs(recipeData.requiredItems) do
-            local ownedAmount = (playerMaterials and playerMaterials[materialName]) or 0
-            if ownedAmount < materialAmount then
-                return false
-            end
-        end
-
-        return true
-    end
+    craftButton:SetEnabled(unlocked)
 
     craftButton.Paint = function(self, w, h)
-        local ready = HasAllMaterials()
-        local baseCol = ready and Color(40, 140, 70, 220) or Color(140, 70, 40, 220)
-        local hoverCol = ready and Color(70, 190, 110, 240) or Color(170, 90, 60, 240)
-        draw.RoundedBox(8, 0, 0, w, h, self:IsHovered() and hoverCol or baseCol)
+        local col
+        if not unlocked then
+            col = Color(120,40,40,180)
+            draw.RoundedBox(6,0,0,w,h,col)
+            draw.SimpleText("LOCKED","DermaDefaultBold",w/2,h/2,Color(255,180,180),TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
+            return
+        end
 
-        local label = ready and "Craft Item" or "Missing Materials"
-        draw.SimpleText(label, "DermaDefaultBold", w / 2, h / 2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        col = self:IsHovered() and Color(80,180,80,150) or Color(60,160,60,150)
+        draw.RoundedBox(6,0,0,w,h,col)
+        draw.SimpleText("Craft","DermaDefaultBold",w/2,h/2,color_white,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
     end
 
     craftButton.DoClick = function()
-        if not HasAllMaterials() then return end
+        if not unlocked then return end
+        if not IsValid(tableEnt) then return end
 
         net.Start("DMS_RequestCraftItem")
+            net.WriteEntity(tableEnt)
             net.WriteString(recipeKey)
-            net.WriteEntity(ent)
         net.SendToServer()
     end
 
-    if IsValid(layout) then
-        layout:Add(itemCard)
-    end
+    layout:Add(itemCard)
 end
 
--- Grid layout creation using DTileLayout
+----------------------------------------------------------------------
+-- Grid Layout
+----------------------------------------------------------------------
 local function CreateCraftingGrid(parent, columns)
     local layout = vgui.Create("DIconLayout", parent)
     layout:Dock(FILL)
-    layout:SetSpaceX(12)  -- Horizontal spacing between items
-    layout:SetSpaceY(12)  -- Vertical spacing between items
-
-    -- Calculate the item width to ensure that we get a fixed number of columns
-    local screenWidth, screenHeight = ScrW(), ScrH()
-    local totalSpacing = 15 * (columns - 1)  -- Total horizontal spacing between items
-    local itemWidth = (screenWidth - totalSpacing) / columns  -- Width of each item
-
-    -- Set the layout's width so items will align based on the calculated item width
-    layout:SetWidth(itemWidth * columns)
+    layout:SetSpaceX(15)
+    layout:SetSpaceY(15)
 
     return layout
 end
 
--- Main crafting menu
-local function CreateCraftingMenu(recipes, playerMaterials, columns, ent)
+----------------------------------------------------------------------
+-- Main Crafting Menu
+----------------------------------------------------------------------
+local function CreateCraftingMenu(tableEnt, recipes, playerMaterials, columns)
     local frame = vgui.Create("DFrame")
-    frame:SetSize(ScrW() * 0.45, ScrH() * 0.55)
+    frame:SetSize(ScrW() * 0.305, ScrH() * 0.45)
     frame:Center()
     frame:SetTitle("")
     frame:MakePopup()
-    frame:DockPadding(16, 56, 16, 16)
+    frame:DockPadding(0, 25, 0, 0)
+
     frame.Paint = function(self, w, h)
-        draw.RoundedBox(12, 0, 0, w, h, Color(10, 10, 10, 230))
-        draw.RoundedBoxEx(12, 0, 0, w, 46, Color(20, 20, 20, 240), true, true, false, false)
-        draw.RoundedBox(0, 0, 42, w, 2, Color(0, 170, 255))
-        draw.SimpleText("Crafting Table", "Trebuchet24", 12, 23, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        draw.SimpleText("Combine your mined resources into useful items.", "DermaDefault", 12, 43, Color(190, 190, 190), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        draw.RoundedBox(8,0,0,w,h,DMS.BackgroundColor)
+        draw.SimpleText(DMS.CraftingTableTitle,"DMS_CTTFont",8,15,color_white,TEXT_ALIGN_LEFT,TEXT_ALIGN_CENTER)
     end
 
-    -- Scroll panel for grid
-    local scroll = vgui.Create("DScrollPanel", frame)
+    local contentBG = vgui.Create("DPanel", frame)
+    contentBG:Dock(FILL)
+    contentBG:DockMargin(6,6,6,6)
+    contentBG.Paint = function(self, w, h)
+        draw.RoundedBox(8,0,0,w,h,DMS.BackgroundColor)
+    end
+
+    local scroll = vgui.Create("DScrollPanel", contentBG)
     scroll:Dock(FILL)
-    scroll:DockMargin(6, 6, 6, 6) -- Padding around the scroll panel
+    scroll:DockMargin(5,5,5,5)
 
-    -- Clean up the scroll bar style
-    local vBar = scroll:GetVBar()
-    vBar:SetWide(8)
+    local vbar = scroll:GetVBar()
+    vbar:SetWide(8)
+    vbar.Paint = function(self,w,h) draw.RoundedBox(4,0,0,w,h,Color(20,20,20,180)) end
+    vbar.btnGrip.Paint = function(self,w,h) draw.RoundedBox(4,0,0,w,h,Color(80,80,80,200)) end
 
-    function vBar:Paint(w, h)
-        draw.RoundedBox(6, 0, 0, w, h, Color(25, 25, 25, 200))
-    end
+    local grid = vgui.Create("DIconLayout", scroll)
+    grid:Dock(FILL)
+    grid:SetSpaceX(5)
+    grid:SetSpaceY(5)
 
-    function vBar.btnUp:Paint(w, h)
-        draw.RoundedBox(6, 0, 0, w, h, Color(40, 40, 40))
-    end
-
-    function vBar.btnDown:Paint(w, h)
-        draw.RoundedBox(6, 0, 0, w, h, Color(40, 40, 40))
-    end
-
-    function vBar.btnGrip:Paint(w, h)
-        draw.RoundedBox(6, 0, 0, w, h, Color(120, 120, 120))
-    end
-
-    -- Grid layout
-    local layout = CreateCraftingGrid(scroll, columns)
-
-    -- Populate cards
     for k, v in pairs(DMS.CraftingRecipes) do
-        CreateCraftingItemCard(layout, k, v, playerMaterials, ent)
+        CreateCraftingItemCard(grid, k, v, tableEnt)
     end
 end
 
--- Open menu from server
+----------------------------------------------------------------------
+-- Open Menu
+----------------------------------------------------------------------
 net.Receive("DMS_OpenCraftingMenu", function()
+    local ent = net.ReadEntity()
     local recipes = net.ReadTable()
     local playerMaterials = net.ReadTable()
-    local ent = net.ReadEntity()
-    local columns = DMS.CraftingColumns or 4  -- Default to 4 columns if not configured
-    CreateCraftingMenu(recipes, playerMaterials, columns, ent)
+    local columns = DMS.CraftingColumns or 4
+
+    if not IsValid(ent) then return end
+
+    CreateCraftingMenu(ent, recipes, playerMaterials, columns)
 end)

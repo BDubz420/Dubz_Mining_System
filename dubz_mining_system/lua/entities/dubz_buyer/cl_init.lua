@@ -11,7 +11,7 @@ function ENT:Draw()
 
     cam.Start3D2D(pos + Vector(0, 0, 77), ang, 0.1)
         draw.RoundedBox(8, -140, -10, 280, 50, Color(0, 0, 0, 180))
-        draw.SimpleTextOutlined("Gem & Ore Buyer", "HUDNumber5", 0, -10, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, Color(0, 0, 0))
+        draw.SimpleTextOutlined(DMS.BuyerTitle, "HUDNumber5", 0, -10, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, Color(0, 0, 0))
         draw.RoundedBox(4, -100, 20, 200, 10, Color(40, 40, 40))
         draw.RoundedBox(4, -100, 20, 200, 10, Color(0, 170, 255))
     cam.End3D2D()
@@ -21,51 +21,24 @@ net.Receive("dubz_buyer_menu", function()
     local ply = net.ReadEntity()
 
     local frame = vgui.Create("DFrame")
-    frame:SetSize(620, 460)
+    frame:SetSize(500, 400)
     frame:SetTitle("")
     frame:Center()
     frame:MakePopup()
 
     frame.Paint = function(self, w, h)
-        draw.RoundedBox(12, 0, 0, w, h, Color(10, 10, 10, 220))
-        draw.RoundedBoxEx(12, 0, 0, w, 52, Color(20, 20, 20, 230), true, true, false, false)
-        draw.RoundedBox(0, 0, 48, w, 2, Color(0, 170, 255))
-        draw.SimpleText("Gem & Ore Buyer", "Trebuchet24", 16, 26, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        draw.SimpleText("Sell your mined haul for quick cash.", "DermaDefault", 16, 46, Color(190, 190, 190), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        draw.RoundedBox(8, 0, 0, w, h, DMS.BackgroundColor)  
+
+        draw.SimpleText(DMS.BuyerTitle,"DMS_CTTFont",8,15,color_white,TEXT_ALIGN_LEFT,TEXT_ALIGN_CENTER)      
     end
 
     local menuw, menuh = frame:GetWide(), frame:GetTall()
 
-    local summaryPanel = vgui.Create("DPanel", frame)
-    summaryPanel:Dock(TOP)
-    summaryPanel:SetTall(54)
-    summaryPanel:DockMargin(12, 60, 12, 8)
-    summaryPanel.Paint = function(self, w, h)
-        draw.RoundedBox(10, 0, 0, w, h, Color(16, 16, 16, 220))
-        draw.RoundedBox(10, 0, 0, w, h, Color(0, 170, 255, 35))
-    end
-
-    local totalLabel = vgui.Create("DLabel", summaryPanel)
-    totalLabel:Dock(LEFT)
-    totalLabel:DockMargin(12, 0, 0, 0)
-    totalLabel:SetWide(menuw * 0.5)
-    totalLabel:SetFont("Trebuchet24")
-    totalLabel:SetTextColor(color_white)
-    totalLabel:SetText("Potential Payout: $0")
-
-    local hintLabel = vgui.Create("DLabel", summaryPanel)
-    hintLabel:Dock(RIGHT)
-    hintLabel:DockMargin(0, 0, 12, 0)
-    hintLabel:SetFont("DermaDefault")
-    hintLabel:SetTextColor(Color(200, 200, 200))
-    hintLabel:SetText("Tip: Hover items for details.")
-    hintLabel:SizeToContents()
-
     local shopPanel = vgui.Create("DPanel", frame)
-    shopPanel:Dock(FILL)
-    shopPanel:DockMargin(12, 4, 12, 64)
+    shopPanel:SetPos(5, 30)
+    shopPanel:SetSize(menuw -10, menuh -80)
     shopPanel.Paint = function(self, w, h)
-        draw.RoundedBox(10, 0, 0, w, h, Color(12, 12, 12, 220))
+        draw.RoundedBox(8, 0, 0, w, h, DMS.BackgroundColor)
     end
 
     local scrollPanel = vgui.Create("DScrollPanel", shopPanel)
@@ -96,55 +69,46 @@ net.Receive("dubz_buyer_menu", function()
 
     local masterSellButton -- declared early so we can update text
 
-    local function RefreshTotalLabel()
-        totalLabel:SetText("Potential Payout: $" .. string.Comma(CalculateTotalValue()))
-        totalLabel:SizeToContents()
-    end
-
-    RefreshTotalLabel()
-
     for _, material in pairs(materials) do
         local materialName = material.name
         local materialColor = material.color
         local materialPrice = material.price
 
         local materialPanel = vgui.Create("DPanel", scrollPanel)
-        materialPanel:SetTall(70)
+        materialPanel:SetTall(50)
         materialPanel:Dock(TOP)
-        materialPanel:DockMargin(0, 0, 0, 8)
+        materialPanel:DockMargin(0, 0, 0, 6)
         materialPanel.Paint = function(self, w, h)
-            local bg = self:IsHovered() and Color(24, 24, 24, 230) or Color(18, 18, 18, 210)
-            draw.RoundedBox(8, 0, 0, w, h, bg)
-            draw.RoundedBox(8, 0, 0, 6, h, materialColor)
-            draw.SimpleText(materialName, "Trebuchet24", 18, 16, materialColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-            draw.SimpleText("$" .. string.Comma(materialPrice) .. " each", "DermaDefaultBold", 18, 44, Color(220, 220, 220), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            draw.RoundedBox(6, 0, 0, w, h, DMS.BackgroundColor)
         end
 
-        local countLabel = vgui.Create("DLabel", materialPanel)
-        countLabel:SetPos(260, 18)
-        countLabel:SetText("Amount: " .. LocalPlayer():GetNWInt("DMS_" .. materialName .. "_amount", 0))
-        countLabel:SetTextColor(Color(255, 255, 255))
-        countLabel:SetFont("DermaDefaultBold")
-        countLabel:SizeToContents()
+        local nameLabel = vgui.Create("DLabel", materialPanel)
+        nameLabel:SetPos(10, 5)
+        nameLabel:SetText(materialName)
+        nameLabel:SetTextColor(materialColor)
+        nameLabel:SizeToContents()
 
-        local valueLabel = vgui.Create("DLabel", materialPanel)
-        valueLabel:SetPos(260, 36)
-        valueLabel:SetText("Value: $" .. string.Comma(materialPrice * LocalPlayer():GetNWInt("DMS_" .. materialName .. "_amount", 0)))
-        valueLabel:SetTextColor(Color(200, 200, 200))
-        valueLabel:SetFont("DermaDefault")
-        valueLabel:SizeToContents()
+        local priceLabel = vgui.Create("DLabel", materialPanel)
+        priceLabel:SetPos(150, 5)
+        priceLabel:SetText("Price: $" .. materialPrice)
+        priceLabel:SetTextColor(Color(255, 255, 255))
+        priceLabel:SizeToContents()
+
+        local countLabel = vgui.Create("DLabel", materialPanel)
+        countLabel:SetPos(250, 5)
+        countLabel:SetText("You have: " .. LocalPlayer():GetNWInt("DMS_" .. materialName .. "_amount", 0))
+        countLabel:SetTextColor(Color(255, 255, 255))
+        countLabel:SizeToContents()
 
         materialLabels[materialName] = countLabel
 
         local sellButton = vgui.Create("DButton", materialPanel)
-        sellButton:SetPos(materialPanel:GetWide() - 240, 10)
-        sellButton:SetSize(110, 24)
+        sellButton:SetPos(365, 5)
+        sellButton:SetSize(100, 18)
         sellButton:SetText("Sell 1")
-        sellButton:SetFont("DermaDefaultBold")
         sellButton:SetTextColor(Color(255, 255, 255))
         sellButton.Paint = function(self, w, h)
-            local col = self:IsHovered() and Color(60, 150, 230, 220) or Color(40, 120, 200, 200)
-            draw.RoundedBox(6, 0, 0, w, h, col)
+            draw.RoundedBox(4, 0, 0, w, h, DMS.AccentColor)
         end
         sellButton.DoClick = function()
             net.Start("DMS_SellMaterial")
@@ -153,56 +117,29 @@ net.Receive("dubz_buyer_menu", function()
         end
 
         local sellAllButton = vgui.Create("DButton", materialPanel)
-        sellAllButton:SetPos(materialPanel:GetWide() - 120, 10)
-        sellAllButton:SetSize(110, 24)
+        sellAllButton:SetPos(365, 26)
+        sellAllButton:SetSize(100, 18)
         sellAllButton:SetText("Sell All")
-        sellAllButton:SetFont("DermaDefaultBold")
         sellAllButton:SetTextColor(Color(255, 255, 255))
         sellAllButton.Paint = function(self, w, h)
-            local col = self:IsHovered() and Color(90, 200, 130, 220) or Color(70, 170, 110, 200)
-            draw.RoundedBox(6, 0, 0, w, h, col)
+            draw.RoundedBox(4, 0, 0, w, h, DMS.AccentColor)
         end
         sellAllButton.DoClick = function()
             net.Start("DMS_SellAllMaterials")
             net.WriteString(materialName)
             net.SendToServer()
         end
-
-        materialPanel.PerformLayout = function(self, w, h)
-            sellButton:SetPos(w - 235, 14)
-            sellAllButton:SetPos(w - 115, 14)
-        end
-
-        local lastAmount = -1
-
-        materialPanel.Think = function(self)
-            if not IsValid(countLabel) or not IsValid(valueLabel) then return end
-
-            local currentAmount = LocalPlayer():GetNWInt("DMS_" .. materialName .. "_amount", 0)
-            if currentAmount ~= lastAmount then
-                lastAmount = currentAmount
-
-                countLabel:SetText("Amount: " .. currentAmount)
-                countLabel:SizeToContents()
-
-                valueLabel:SetText("Value: $" .. string.Comma(materialPrice * currentAmount))
-                valueLabel:SizeToContents()
-
-                RefreshTotalLabel()
-            end
-        end
     end
 
     -- Master Sell All Button
     masterSellButton = vgui.Create("DButton", frame)
-    masterSellButton:Dock(BOTTOM)
-    masterSellButton:DockMargin(12, 8, 12, 12)
-    masterSellButton:SetTall(40)
+    masterSellButton:SetSize(menuw - 20, 35)
+    masterSellButton:SetPos(10, menuh - 40)
     masterSellButton:SetText("")
     masterSellButton.Paint = function(self, w, h)
         local value = CalculateTotalValue()
-        local text = "Sell All Materials ($" .. string.Comma(value) .. ")"
-        draw.RoundedBox(8, 0, 0, w, h, Color(0, 170, 255, 200))
+        local text = "Sell All Materials ($" .. value .. ")"
+        draw.RoundedBox(6, 0, 0, w, h, DMS.AccentColor)
         draw.SimpleText(text, "DermaDefaultBold", w / 2, h / 2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
     masterSellButton.DoClick = function()
@@ -220,8 +157,6 @@ net.Receive("dubz_buyer_menu", function()
         -- Try immediately first
         if IsValid(materialLabels[matName]) then
             materialLabels[matName]:SetText("Amount: " .. newAmount)
-            materialLabels[matName]:SizeToContents()
-            RefreshTotalLabel()
             return
         end
 
@@ -230,8 +165,6 @@ net.Receive("dubz_buyer_menu", function()
         timer.Create("DMS_LabelWait_" .. matName, 0.1, 20, function()
             if IsValid(materialLabels[matName]) then
                 materialLabels[matName]:SetText("Amount: " .. newAmount)
-                materialLabels[matName]:SizeToContents()
-                RefreshTotalLabel()
                 timer.Remove("DMS_LabelWait_" .. matName)
             end
 

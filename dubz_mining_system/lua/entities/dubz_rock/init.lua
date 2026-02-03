@@ -18,20 +18,8 @@ function ENT:Initialize()
 
     -- Fallbacks for gem count
     local gemMin = DMS.GemSpawnAmountMin or 1
-    local gemMax = DMS.GemSpawnAmountMax or 3
+    local gemMax = DMS.GemSpawnAmountMax or 5
     local gemCount = math.random(gemMin, gemMax)
-
-    local baseHealth = DMS.RockHealth or 100
-
-    -- Modify based on rock type (optional)
-    --if self:GetModel() == "models/props/cs_assault/ticketmachine.mdl" then -- Example condition for rock model
-    --    baseHealth = baseHealth * 1.5  -- Example: Increase health for tougher rocks
-    --end
-
-    -- Modify rock health based on player's pickaxe damage (adjust the scale as necessary)
-    local rockHealth = baseHealth
-
-    self:SetNWInt("health", rockHealth)
 end
 
 -- Weighted gem selection function
@@ -115,7 +103,7 @@ end
 function ENT:GiveMiningXP(ply)
     if not IsValid(ply) then return end
 
-    local xpGain = math.random(DMS.MinXPPerRock, DMS.MaxXPPerRock) or 10
+    local xpGain = DMS.XPPerRock or 10
     local currentXP = ply:GetNWInt("DubzXP", 0)
     local level = ply:GetNWInt("DubzLevel", 1)
 
@@ -149,37 +137,23 @@ function ENT:OnTakeDamage(dmg)
     local inflictor = dmg:GetInflictor()
     local attacker = dmg:GetAttacker()
 
-    -- Ensure the attacker is a player
-    if not IsValid(attacker) or not attacker:IsPlayer() then return end
+    -- Check if the tool used to mine is valid
+    local isToolValid = table.HasValue(DMS.MiningTools, inflictor:GetClass()) or
+        (IsValid(attacker) and IsValid(attacker:GetActiveWeapon()) and table.HasValue(DMS.MiningTools, attacker:GetActiveWeapon():GetClass()))
 
-    -- Get the player's active weapon
-    local weapon = attacker:GetActiveWeapon()
+    if isToolValid then
+        local newHealth = self:GetNWInt("health", 100) - DMS.RockDamagePerHit
+        self:SetNWInt("health", newHealth)
 
-    -- Check if the weapon is a valid mining tool (pickaxe)
-    if IsValid(weapon) and weapon:GetClass() == "weapon_dubz_pickaxe_temp" then
-        -- Get the player's pickaxe damage based on their level
-        local pickaxeDamage = 0
-        local pickaxeLevel = attacker:GetNWInt("DubzLevel", 1)  -- Default level 1 if not set
-        for _, tier in ipairs(DMS.PickaxeTiers) do
-            if pickaxeLevel >= tier.level then
-                pickaxeDamage = tier.damage
+        if newHealth <= 0 then
+            -- Give XP before removing rock
+            if IsValid(attacker) and attacker:IsPlayer() then
+                self:GiveMiningXP(attacker)
             end
-        end
 
-        -- If the pickaxe damage is valid, apply it to the rock
-        if pickaxeDamage > 0 then
-            local newHealth = self:GetNWInt("health", DMS.RockHealth) - pickaxeDamage
-            self:SetNWInt("health", newHealth)
-
-            -- If health reaches 0, remove the rock and give XP to the attacker
-            if newHealth <= 0 then
-                self:GiveMiningXP(attacker)  -- Assuming GiveMiningXP is already defined
-                self:SetNWInt("health", 0)
-            end
+            -- Mark rock for removal
+            self:SetNWInt("health", 0)
         end
-    else
-        -- If the player isn't using a valid mining tool, no damage is dealt
-        return
     end
 end
 

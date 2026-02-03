@@ -58,7 +58,6 @@ end
 
 function ENT:Use(ply)
     net.Start("dubz_buyer_menu")
-    net.WriteEntity(ply)
     net.Send(ply)
 end
 
